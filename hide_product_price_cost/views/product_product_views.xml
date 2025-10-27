@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Product Variant FORM: keep label + value in sync with Cybrosys groups -->
+  <record id="product_normal_form_view" model="ir.ui.view">
+    <field name="name">product.product.view.form.inherit.hide.product.price.cost</field>
+    <field name="model">product.product</field>
+    <field name="inherit_id" ref="product.product_normal_form_view"/>
+    <field name="priority" eval="200"/>
+    <field name="arch" type="xml">
+      <!-- Price value -->
+      <field name="lst_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </field>
+      <!-- Price label (if present in parent view) -->
+      <xpath expr="//label[@for='lst_price']" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </xpath>
+
+      <!-- Cost value -->
+      <field name="standard_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost</attribute>
+      </field>
+      <!-- Cost label (if present in parent view) -->
+      <xpath expr="//label[@for='standard_price']" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost</attribute>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Product Variant KANBAN -->
+  <record id="product_kanban_view" model="ir.ui.view">
+    <field name="name">product.product.view.kanban.inherit.hide.product.price.cost</field>
+    <field name="model">product.product</field>
+    <field name="inherit_id" ref="product.product_kanban_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//span[contains(text(), 'Price:')]" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Product Variant TREE -->
+  <record id="product_product_tree_view" model="ir.ui.view">
+    <field name="name">product.product.view.tree.inherit.hide.product.price.cost</field>
+    <field name="model">product.product</field>
+    <field name="inherit_id" ref="product.product_product_tree_view"/>
+    <field name="arch" type="xml">
+      <field name="lst_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </field>
+      <field name="standard_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost</attribute>
+      </field>
+    </field>
+  </record>
+</odoo>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Product Template FORM -->
+  <record id="product_template_form_view" model="ir.ui.view">
+    <field name="name">product.template.view.form.inherit.hide.product.price.cost</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_form_view"/>
+    <field name="priority" eval="200"/>
+    <field name="arch" type="xml">
+
+      <!-- PRICE (unchanged) -->
+      <xpath expr="//span[@name='uom_span']" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </xpath>
+      <field name="list_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </field>
+
+      <!-- COST LABEL keeps same group -->
+      <xpath expr="//notebook//page[@name='general_information']//group[@name='group_standard_price']//label[@for='standard_price']" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost</attribute>
+      </xpath>
+
+      <!-- COST: replace the whole block to remove 'per' + UoM -->
+      <xpath expr="//div[@name='standard_price_uom']" position="replace">
+        <div name="standard_price_uom" groups="hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost">
+          <field name="standard_price" class="oe_inline"/>
+        </div>
+      </xpath>
+
+    </field>
+  </record>
+
+  <!-- Product Template KANBAN -->
+  <record id="product_template_kanban_view" model="ir.ui.view">
+    <field name="name">product.template.view.kanban.inherit.hide.product.price.cost</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_kanban_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//span[contains(text(), 'Price:')]" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Product Template TREE -->
+  <record id="product_template_tree_view" model="ir.ui.view">
+    <field name="name">product.template.view.tree.inherit.hide.product.price.cost</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_tree_view"/>
+    <field name="arch" type="xml">
+      <field name="list_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_price</attribute>
+      </field>
+      <field name="standard_price" position="attributes">
+        <attribute name="groups">hide_product_price_cost.hide_product_price_cost_group_user_show_product_cost</attribute>
+      </field>
+    </field>
+  </record>
+</odoo>
