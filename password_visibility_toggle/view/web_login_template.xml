@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="password_visibility_toggle_template" inherit_id="web.login">
+        <xpath expr="//input[@id='password']" position="replace">
+            <div class="input-group">
+                <input type="password" placeholder="Password" name="password" id="password" 
+                       t-attf-class="form-control #{'form-control-sm' if form_small else ''}" 
+                       required="required" autocomplete="current-password" 
+                       t-att-autofocus="'autofocus' if login else None" maxlength="4096"/>
+                <button class="btn btn-primary" type="button" onclick="togglePasswordVisibility()"
+                        title="Toggle password visibility" tabindex="0">
+                    <i class="fa fa-eye-slash" id="toggleIcon"/>
+                </button>
+            </div>
+            
+            <script>
+                function togglePasswordVisibility() {
+                    var passwordInput = document.getElementById('password');
+                    var toggleIcon = document.getElementById('toggleIcon');
+            
+                    if (passwordInput.type === "password") {
+                        passwordInput.type = "text";
+                        toggleIcon.classList.remove('fa-eye-slash');
+                        toggleIcon.classList.add('fa-eye');
+                    } else {
+                        passwordInput.type = "password";
+                        toggleIcon.classList.remove('fa-eye');
+                        toggleIcon.classList.add('fa-eye-slash');
+                    }
+                }
+            </script>
+        </xpath>
+    </template>
+
+</odoo>
