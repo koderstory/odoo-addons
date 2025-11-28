@@ -60,9 +60,13 @@
                     <header>
                         <button name="validate_db" type="object" class="btn-primary"
                                 string="Confirm" invisible="state!='draft'" context="{'confirm': True}"/>
-                        <button name="manual_execution" type="object" class="btn-warning"
-                                string="Run BackUpManually" invisible="state!='confirmed'"/>
-
+                        <!-- <button name="manual_execution" type="object" class="btn-warning"
+                                string="Run BackUpManually" invisible="state!='confirmed'"/> -->
+                        
+                        <button name="action_open_manual_backup_wizard" type="object" class="btn-warning"
+                                string="Run BackUp Manually" invisible="state!='confirmed'"/>
+                        
+                        
                         <button name="revert_state" type="object" class="btn-secondary"
                                 string="Edit" invisible="state!='confirmed'"
                                 groups="eqp_backup.group_eqp_backup_admin"/>

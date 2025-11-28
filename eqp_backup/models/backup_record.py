@@ -523,8 +523,11 @@ class BackupRecord(models.Model):
         db_name = record.db_name
         extension = "zip"
 
+        # Optional manual file name (only present in manual executions with popup)
+        manual_name = self.env.context.get("manual_file_name")
+
         # Get file path details
-        destination_path, file_name = server.get_file_path_details(db_name, extension)
+        destination_path, file_name = server.get_file_path_details(db_name, extension, manual_name=manual_name)
         file_path = destination_path + file_name
 
         backup_type = server.backup_type
@@ -777,6 +780,22 @@ class BackupRecord(models.Model):
         else:
             return result_type, result_msg
 
+
+
+    def action_open_manual_backup_wizard(self):
+        """Open popup to ask for manual backup filename."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Run Manual Backup"),
+            "res_model": "backup.manual.name.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_backup_id": self.id,
+            },
+        }
+
     def manual_execution(self):
         """Execute backup manually.
 
@@ -791,13 +810,30 @@ class BackupRecord(models.Model):
                 record.id
             )
 
+            # return {
+            #     "type": "ir.actions.client",
+            #     "tag": "display_notification",
+            #     "context": dict(self._context, active_ids=self.ids),
+            #     "params": {
+            #         "message": _(msg),
+            #         "type": result_type,
+            #         "sticky": False,
+            #     },
+            # }
+            # Build notification params
+            params = {
+                "message": _(msg),
+                "type": result_type,
+                "sticky": False,
+            }
+
+            # 👇 If called from the wizard, close the popup after notification
+            if self.env.context.get("from_wizard"):
+                params["next"] = {"type": "ir.actions.act_window_close"}
+
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
                 "context": dict(self._context, active_ids=self.ids),
-                "params": {
-                    "message": _(msg),
-                    "type": result_type,
-                    "sticky": False,
-                },
+                "params": params,
             }
