@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<odoo>
+    <!-- List View -->
+    <record model="ir.ui.view" id="view_task_enhancement_milestone_tree">
+        <field name="name">project.task.enhancement.milestone.tree</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_tree2"/>
+        <field eval="2" name="priority"/>
+        <field name="arch" type="xml">
+            <field name="user_ids" position="after">
+                <field name="milestone_id"/>
+            </field>
+        </field>
+    </record>
+    <!-- Form View -->
+    <!-- Kanban View -->
+    <record model="ir.ui.view" id="view_task_enhancement_milestone_kanban">
+        <field name="name">project.task.enhancement.milestone.kanban</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_kanban"/>
+        <field name="arch" type="xml">
+             <xpath expr="//field[@name='tag_ids']" position="after">
+                <t t-if="record.milestone_id.raw_value">
+                    <span class="o_value">
+                        <field name="milestone_id" widget="badge"/>
+                    </span>
+                </t>
+            </xpath>
+        </field>
+    </record>
+    <record model='ir.actions.act_window' id="action_project_task_miletstone">
+        <field name="name">Project Milestones</field>
+        <field name="res_model">project.milestone</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    
+    <menuitem
+        name="Project Milestones"
+        id="menu_project_config_milestone"
+        action="action_project_task_miletstone"
+        sequence="11" parent="project.menu_project_config"
+        groups="project.group_project_milestone"
+    />
+
+</odoo>
