@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, _
-
+from odoo.exceptions import ValidationError
+import re
 
 class BackupManualNameWizard(models.TransientModel):
     _name = "backup.manual.name.wizard"
@@ -23,9 +24,17 @@ class BackupManualNameWizard(models.TransientModel):
         self.ensure_one()
         manual_name = (self.manual_name or "").strip()
 
-        # Pass manual file name to the manual_execution via context
+        # ✅ Validate: only letters, numbers, underscore
+        if manual_name and not re.match(r'^[A-Za-z0-9_]+$', manual_name):
+            raise ValidationError(
+                _(
+                    "Invalid backup file name.\n"
+                    "Use only letters (A-Z, a-z), numbers (0-9), and underscore (_)."
+                )
+            )
+
         ctx = dict(self.env.context or {})
         ctx["manual_file_name"] = manual_name
-        ctx["from_wizard"] = True
+        ctx["from_wizard"] = True  # mark that we came from the wizard
 
         return self.backup_id.with_context(ctx).manual_execution()
