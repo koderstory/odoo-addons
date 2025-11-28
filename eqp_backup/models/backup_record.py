@@ -42,6 +42,17 @@ from odoo.tools.misc import exec_pg_environ, find_pg_tool
 _logger = logging.getLogger(__name__)
 
 
+def _human_size(num_bytes):
+    """Return human readable size like '12.3 MB'."""
+    for unit in ["bytes", "KB", "MB", "GB", "TB"]:
+        if num_bytes < 1024.0 or unit == "TB":
+            if unit == "bytes":
+                return f"{num_bytes} {unit}"
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024.0
+
+
+
 # Overwriting the "db functions" to prevent that list_db=False will block the process
 
 
@@ -315,6 +326,75 @@ class BackupRecord(models.Model):
         ),
     ]
 
+    # store backup files
+    backup_file_ids = fields.One2many(
+        "backup.record.file",
+        "backup_id",
+        string="Backup Files",
+        readonly=True,
+    )
+
+    # get list of backup files
+
+    def action_refresh_backup_files(self):
+        """Scan the destination path and rebuild the list of backup files."""
+        for record in self:
+            record.check_valid_state(just_server=True)
+            server = record.server_id
+
+            if server.backup_type != "local":
+                # For now we only implement listing for local backups.
+                # (SFTP/Drive/Dropbox would need remote APIs.)
+                raise ValidationError(
+                    _("Listing backup files is currently only implemented for Local servers.")
+                )
+
+            dest = server.destination_path or ""
+            if not dest:
+                raise ValidationError(_("Destination Path is not configured on the server."))
+
+            # Ensure trailing separator
+            if not dest.endswith(("/", os.path.sep)):
+                dest += "/"
+
+            # Clear old lines
+            record.backup_file_ids.unlink()
+
+            # Find all zip files (you can also filter by prefix 'Backup_' if you prefer)
+            pattern = os.path.join(dest, "*.zip")
+            files = glob.glob(pattern)
+
+            lines = []
+            for fpath in files:
+                try:
+                    stat = os.stat(fpath)
+                except OSError:
+                    continue
+
+                fname = os.path.basename(fpath)
+                size_bytes = stat.st_size
+                # Convert to human readable size
+                size_human = _human_size(size_bytes)
+
+                backup_dt = datetime.fromtimestamp(stat.st_mtime)
+
+                lines.append({
+                    "backup_id": record.id,
+                    "name": fname,
+                    "full_path": fpath,
+                    "size_bytes": size_bytes,
+                    "size_human": size_human,
+                    "backup_date": backup_dt,
+                })
+
+            if lines:
+                self.env["backup.record.file"].create(lines)
+
+        return True
+
+
+
+    
     # Static Methods
     @staticmethod
     def _generate_backup(db_name, file, extension, bu_type):

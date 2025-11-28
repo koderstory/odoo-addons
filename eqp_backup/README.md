@@ -74,3 +74,8 @@ For support and more information, please visit [Our Website](https://eqpsolution
 ## Further Information
 
 - HTML Description: [Static Description](<static/description/index.html>)
+
+
+## UPDATE
+
+- Add manual input filename when running run backup manually
