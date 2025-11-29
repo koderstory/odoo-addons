@@ -29,3 +29,22 @@ class BackupRecordFile(models.Model):
     def open_folder_help(self):
         # optional placeholder for future actions (e.g. download)
         return True
+
+    def action_download_file(self):
+        """Open a URL that streams this backup file."""
+        self.ensure_one()
+
+        if not self.full_path:
+            raise ValidationError(_("File path is not set."))
+
+        if not os.path.exists(self.full_path):
+            raise ValidationError(_("File not found on the server:\n%s") % self.full_path)
+
+        # Route defined in our controller below
+        url = f"/eqp_backup/download_backup_file/{self.id}"
+
+        return {
+            "type": "ir.actions.act_url",
+            "url": url,
+            "target": "self",   # or "new" to download in a new tab
+        }

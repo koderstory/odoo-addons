@@ -162,7 +162,13 @@
                                         <field name="name" />
                                         <field name="size_human" />
                                         <field name="backup_date" />
-                                        <!-- <field name="full_path" /> -->
+                                        <!-- Download button column -->
+                                        <button name="action_download_file"
+                                            type="object"
+                                            string="Download"
+                                            icon="fa-download"
+                                            class="btn-link" />
+
                                     </list>
                                 </field>
 

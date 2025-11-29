@@ -861,7 +861,6 @@ class BackupRecord(models.Model):
             return result_type, result_msg
 
 
-
     def action_open_manual_backup_wizard(self):
         """Open popup to ask for manual backup filename."""
         self.ensure_one()

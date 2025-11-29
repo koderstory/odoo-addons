@@ -439,7 +439,7 @@ class BackupServer(models.Model):
             base_name = manual_name
         else:
             # Original default pattern
-            base_name = f"Backup_{name}_{formatted_date}"
+            base_name = f"{name}_{formatted_date}"
 
         # 4) Destination path from server config
         #    Keep same behavior as original: ensure trailing "/" or "\"
