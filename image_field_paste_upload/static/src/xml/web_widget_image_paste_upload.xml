@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Extend ImageField UI -->
+    <t t-inherit="web.ImageField" t-inherit-mode="extension">
+
+        <!-- Insert paste area before the "Select" upload button -->
+        <xpath expr="//button[contains(@class,'o_select_file_button')]" position="before">
+
+            <div class="o_input_paste_area btn btn-sm btn-light me-1"
+                role="button"
+                aria-label="Paste image"
+                title="Click here, then type Ctrl+V / Cmd+V"
+                tabindex="0"
+                contenteditable="true"
+                t-on-click.prevent.stop="focusPasteTarget"
+                t-on-mousedown.prevent.stop=""
+                t-on-paste.prevent.stop="onFilePaste"
+                t-on-input="cleanPaste">
+                <i class="fa fa-copy fa-fw"></i>
+            </div>
+
+        </xpath>
+
+    </t>
+
+</templates>

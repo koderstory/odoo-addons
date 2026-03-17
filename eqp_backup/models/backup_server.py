@@ -393,34 +393,67 @@ class BackupServer(models.Model):
 
             return sftp_connection, transport
 
-    def get_file_path_details(self, name, extension):
+    def _ensure_unique_name(self, destination_path, base_name, extension):
+        """
+        Ensure file name is unique in destination_path.
+        If 'name.zip' exists -> 'name_1.zip', 'name_2.zip', etc.
+        """
+        candidate = f"{base_name}.{extension}"
+        counter = 1
+
+        while os.path.exists(os.path.join(destination_path, candidate)):
+            candidate = f"{base_name}_{counter}.{extension}"
+            counter += 1
+
+        return candidate
+
+    def get_file_path_details(self, name, extension, manual_name=None):
         """
         Validates the extension and formats file path details.
 
         Args:
-            name (str): Name of the file.
-            extension (str): File extension.
+            name (str): Name of the file (usually DB name or 'test').
+            extension (str): File extension ('txt' or 'zip').
+            manual_name (str): Optional manual base name (without extension).
 
         Returns:
-            tuple: Tuple containing destination path and formatted file name.
+            tuple: (destination_path, file_name)
         """
-        # Validate the extension
+        self.ensure_one()
+
+        # 1) Validate extension
         if extension not in ("txt", "zip"):
             _logger.error("Unsupported file extension (supported formats: txt, zip)")
             raise ValidationError(
                 "Unsupported file extension (supported formats: txt, zip)"
             )
-        # Catching and formatting timestamp
+
+        # 2) Build timestamp (same as original logic)
         now = fields.Datetime.context_timestamp(self, fields.Datetime.now())
         formatted_date = now.strftime("%Y-%m-%d_%H.%M.%S")
-        file_name = f"Backup_{name}_{formatted_date}.{extension}"
-        destination_path = (
-            self.destination_path
-            if self.destination_path and self.destination_path.endswith("/")
-            else (self.destination_path or "") + "/"
-        )
+
+        # 3) Determine base name (WITHOUT extension)
+        manual_name = (manual_name or "").strip()
+        if manual_name:
+            # Use user-provided base name
+            base_name = manual_name
+        else:
+            # Original default pattern
+            base_name = f"{name}_{formatted_date}"
+
+        # 4) Destination path from server config
+        #    Keep same behavior as original: ensure trailing "/" or "\"
+        destination_path = self.destination_path or ""
+        if not destination_path.endswith(("/", os.path.sep)):
+            destination_path += "/"
+
+        # 5) Ensure file name is unique (for local backups it checks real files,
+        #    for SFTP/Drive/Dropbox it just keeps first candidate)
+        file_name = self._ensure_unique_name(destination_path, base_name, extension)
 
         return destination_path, file_name
+
+
 
     def get_drive_file_media(self, f_content, m_type):
         """

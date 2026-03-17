@@ -42,6 +42,17 @@ from odoo.tools.misc import exec_pg_environ, find_pg_tool
 _logger = logging.getLogger(__name__)
 
 
+def _human_size(num_bytes):
+    """Return human readable size like '12.3 MB'."""
+    for unit in ["bytes", "KB", "MB", "GB", "TB"]:
+        if num_bytes < 1024.0 or unit == "TB":
+            if unit == "bytes":
+                return f"{num_bytes} {unit}"
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024.0
+
+
+
 # Overwriting the "db functions" to prevent that list_db=False will block the process
 
 
@@ -315,6 +326,75 @@ class BackupRecord(models.Model):
         ),
     ]
 
+    # store backup files
+    backup_file_ids = fields.One2many(
+        "backup.record.file",
+        "backup_id",
+        string="Backup Files",
+        readonly=True,
+    )
+
+    # get list of backup files
+
+    def action_refresh_backup_files(self):
+        """Scan the destination path and rebuild the list of backup files."""
+        for record in self:
+            record.check_valid_state(just_server=True)
+            server = record.server_id
+
+            if server.backup_type != "local":
+                # For now we only implement listing for local backups.
+                # (SFTP/Drive/Dropbox would need remote APIs.)
+                raise ValidationError(
+                    _("Listing backup files is currently only implemented for Local servers.")
+                )
+
+            dest = server.destination_path or ""
+            if not dest:
+                raise ValidationError(_("Destination Path is not configured on the server."))
+
+            # Ensure trailing separator
+            if not dest.endswith(("/", os.path.sep)):
+                dest += "/"
+
+            # Clear old lines
+            record.backup_file_ids.unlink()
+
+            # Find all zip files (you can also filter by prefix 'Backup_' if you prefer)
+            pattern = os.path.join(dest, "*.zip")
+            files = glob.glob(pattern)
+
+            lines = []
+            for fpath in files:
+                try:
+                    stat = os.stat(fpath)
+                except OSError:
+                    continue
+
+                fname = os.path.basename(fpath)
+                size_bytes = stat.st_size
+                # Convert to human readable size
+                size_human = _human_size(size_bytes)
+
+                backup_dt = datetime.fromtimestamp(stat.st_mtime)
+
+                lines.append({
+                    "backup_id": record.id,
+                    "name": fname,
+                    "full_path": fpath,
+                    "size_bytes": size_bytes,
+                    "size_human": size_human,
+                    "backup_date": backup_dt,
+                })
+
+            if lines:
+                self.env["backup.record.file"].create(lines)
+
+        return True
+
+
+
+    
     # Static Methods
     @staticmethod
     def _generate_backup(db_name, file, extension, bu_type):
@@ -523,8 +603,11 @@ class BackupRecord(models.Model):
         db_name = record.db_name
         extension = "zip"
 
+        # Optional manual file name (only present in manual executions with popup)
+        manual_name = self.env.context.get("manual_file_name")
+
         # Get file path details
-        destination_path, file_name = server.get_file_path_details(db_name, extension)
+        destination_path, file_name = server.get_file_path_details(db_name, extension, manual_name=manual_name)
         file_path = destination_path + file_name
 
         backup_type = server.backup_type
@@ -777,6 +860,21 @@ class BackupRecord(models.Model):
         else:
             return result_type, result_msg
 
+
+    def action_open_manual_backup_wizard(self):
+        """Open popup to ask for manual backup filename."""
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Run Manual Backup"),
+            "res_model": "backup.manual.name.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_backup_id": self.id,
+            },
+        }
+
     def manual_execution(self):
         """Execute backup manually.
 
@@ -791,13 +889,30 @@ class BackupRecord(models.Model):
                 record.id
             )
 
+            # return {
+            #     "type": "ir.actions.client",
+            #     "tag": "display_notification",
+            #     "context": dict(self._context, active_ids=self.ids),
+            #     "params": {
+            #         "message": _(msg),
+            #         "type": result_type,
+            #         "sticky": False,
+            #     },
+            # }
+            # Build notification params
+            params = {
+                "message": _(msg),
+                "type": result_type,
+                "sticky": False,
+            }
+
+            # 👇 If called from the wizard, close the popup after notification
+            if self.env.context.get("from_wizard"):
+                params["next"] = {"type": "ir.actions.act_window_close"}
+
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
                 "context": dict(self._context, active_ids=self.ids),
-                "params": {
-                    "message": _(msg),
-                    "type": result_type,
-                    "sticky": False,
-                },
+                "params": params,
             }

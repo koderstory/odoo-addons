@@ -29,6 +29,7 @@
         "views/res_config_settings_views.xml",
         "views/backup_record_views.xml",
         "views/backup_server_views.xml",
+        'views/backup_manual_name_wizard_views.xml',
     ],
     "assets": {
         "web.assets_backend": [
