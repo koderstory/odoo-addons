@@ -287,7 +287,7 @@
                                                         </tr>
                                                     </t>
                                                     <t t-else="">
-                                                        <t t-foreach="getAccountLinesForDisplay(account)" t-as="line" t-key="line.id">
+                                                        <t t-foreach="getAccountLinesForDisplay(account)" t-as="line" t-key="account.id + '_' + line.id">
                                                             <tr t-att-class="line.is_initial_balance ? 'o_gl_initial_row' : 'o_gl_line_row'">
                                                                 <td class="ps-4">
                                                                     <t t-if="line.is_initial_balance">

@@ -1,9 +1,79 @@
-from odoo import _, api, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 
 
 class AccountReportGeneralLedger(models.TransientModel):
-    _inherit = "account.report.general.ledger"
+    _name = "accounting.owl.general.ledger.report"
+    _description = "Accounting OWL General Ledger Report"
+
+    company_id = fields.Many2one(
+        "res.company",
+        string="Company",
+        required=True,
+        readonly=True,
+        default=lambda self: self.env.company,
+    )
+    journal_ids = fields.Many2many(
+        "account.journal",
+        "accounting_owl_general_ledger_journal_rel",
+        "wizard_id",
+        "journal_id",
+        string="Journals",
+        required=True,
+        default=lambda self: self.env["account.journal"].search(
+            [("company_id", "=", self.env.company.id)]
+        ),
+        domain="[('company_id', '=', company_id)]",
+    )
+    date_from = fields.Date(string="Start Date")
+    date_to = fields.Date(string="End Date")
+    target_move = fields.Selection(
+        [("posted", "All Posted Entries"), ("all", "All Entries")],
+        string="Target Moves",
+        required=True,
+        default="posted",
+    )
+    display_account = fields.Selection(
+        [
+            ("all", "All"),
+            ("movement", "With movements"),
+            ("not_zero", "With balance is not equal to 0"),
+        ],
+        string="Display Accounts",
+        required=True,
+        default="movement",
+    )
+    analytic_account_ids = fields.Many2many(
+        "account.analytic.account",
+        "accounting_owl_general_ledger_analytic_rel",
+        "wizard_id",
+        "analytic_account_id",
+        string="Analytic Accounts",
+    )
+    account_ids = fields.Many2many("account.account", string="Accounts")
+    partner_ids = fields.Many2many("res.partner", string="Partners")
+    initial_balance = fields.Boolean(
+        string="Include Initial Balances",
+        help=(
+            "If you selected a date range, this option adds a row showing "
+            "the debit, credit, and balance that precede the selected period."
+        ),
+    )
+    sortby = fields.Selection(
+        [("sort_date", "Date"), ("sort_journal_partner", "Journal & Partner")],
+        string="Sort by",
+        required=True,
+        default="sort_date",
+    )
+
+    @api.onchange("company_id")
+    def _onchange_company_id(self):
+        if self.company_id:
+            self.journal_ids = self.env["account.journal"].search(
+                [("company_id", "=", self.company_id.id)]
+            )
+        else:
+            self.journal_ids = self.env["account.journal"].search([])
 
     @api.model
     def _check_owl_report_access(self):
@@ -132,24 +202,8 @@ class AccountReportGeneralLedger(models.TransientModel):
         account = self._get_owl_accounts(options).filtered(lambda rec: rec.id == account_id)
         if not account:
             return {"account_id": account_id, "lines": [], "line_count": 0}
-
-        report_model = self.env["report.accounting_pdf_reports.report_general_ledger"]
-        query_context = self._build_owl_query_context(
-            options, analytic_accounts, partners
-        )
-        account_result = report_model.with_context(query_context)._get_account_move_entry(
-            account,
-            analytic_accounts,
-            partners,
-            options["initial_balance"],
-            options["sortby"],
-            "all",
-        )
-        account_data = account_result[0] if account_result else {"move_lines": []}
-        move_lines = account_data.get("move_lines", [])
-        move_by_line_id = self._get_owl_move_by_line_id(move_lines)
-        payload_lines = self._serialize_owl_move_lines(
-            account.id, move_lines, move_by_line_id
+        payload_lines = self._get_owl_account_lines_payload(
+            account[0], options, analytic_accounts, partners
         )
         return {
             "account_id": account.id,
@@ -200,34 +254,6 @@ class AccountReportGeneralLedger(models.TransientModel):
         return options
 
     @api.model
-    def _build_owl_context(self, options):
-        company = self.env.company
-        return {
-            "journal_ids": options["journal_ids"] or False,
-            "state": options["target_move"],
-            "date_from": options["date_from"] or False,
-            "date_to": options["date_to"] or False,
-            "strict_range": bool(options["date_from"]),
-            "company_id": company.id,
-            "allowed_company_ids": [company.id],
-            "lang": self.env.lang,
-        }
-
-    @api.model
-    def _build_owl_query_context(
-        self, options, analytic_accounts=False, partners=False, initial_balance=False
-    ):
-        context = dict(self._build_owl_context(options))
-        if analytic_accounts:
-            context["analytic_account_ids"] = analytic_accounts
-        if partners:
-            context["partner_ids"] = partners
-        if initial_balance:
-            context["date_to"] = False
-            context["initial_bal"] = True
-        return context
-
-    @api.model
     def _get_owl_accounts(self, options):
         company = self.env.company
         account_domain = [("company_ids", "in", [company.id])]
@@ -242,15 +268,18 @@ class AccountReportGeneralLedger(models.TransientModel):
         empty_totals = {"debit": 0.0, "credit": 0.0, "balance": 0.0, "line_count": 0}
         current_totals = self._get_owl_grouped_account_totals(
             accounts.ids,
-            self._build_owl_query_context(options, analytic_accounts, partners),
+            options,
+            analytic_accounts=analytic_accounts,
+            partners=partners,
         )
         initial_totals = {}
         if options["initial_balance"]:
             initial_totals = self._get_owl_grouped_account_totals(
                 accounts.ids,
-                self._build_owl_query_context(
-                    options, analytic_accounts, partners, initial_balance=True
-                ),
+                options,
+                analytic_accounts=analytic_accounts,
+                partners=partners,
+                initial_balance=True,
             )
 
         payload_accounts = []
@@ -289,82 +318,130 @@ class AccountReportGeneralLedger(models.TransientModel):
         return payload_accounts
 
     @api.model
-    def _get_owl_grouped_account_totals(self, account_ids, context):
+    def _build_owl_move_line_domain(
+        self,
+        options,
+        account_ids,
+        analytic_accounts=False,
+        partners=False,
+        initial_balance=False,
+    ):
+        domain = [
+            ("display_type", "not in", ("line_section", "line_note")),
+            ("parent_state", "!=", "cancel"),
+            ("company_id", "=", self.env.company.id),
+            ("account_id", "in", account_ids),
+        ]
+        if options["date_to"] and not initial_balance:
+            domain.append(("date", "<=", options["date_to"]))
+        if options["date_from"]:
+            operator = "<" if initial_balance else ">="
+            domain.append(("date", operator, options["date_from"]))
+        if options["journal_ids"]:
+            domain.append(("journal_id", "in", options["journal_ids"]))
+        if options["target_move"] != "all":
+            domain.append(("parent_state", "=", options["target_move"]))
+        if analytic_accounts:
+            domain.append(("analytic_distribution", "in", analytic_accounts.ids))
+        if partners:
+            domain.append(("partner_id", "in", partners.ids))
+        return domain
+
+    @api.model
+    def _get_owl_grouped_account_totals(
+        self, account_ids, options, analytic_accounts=False, partners=False, initial_balance=False
+    ):
         if not account_ids:
             return {}
-
-        move_line_model = self.env["account.move.line"]
-        _, where_clause, where_params = move_line_model.with_context(context)._query_get()
-        filters = ["l.account_id IN %s"]
-        if where_clause.strip():
-            filters.append(
-                where_clause.strip()
-                .replace("account_move_line__move_id", "m")
-                .replace("account_move_line", "l")
-            )
-
-        sql = """
-            SELECT
-                l.account_id AS account_id,
-                COALESCE(SUM(l.debit), 0.0) AS debit,
-                COALESCE(SUM(l.credit), 0.0) AS credit,
-                COALESCE(SUM(l.debit), 0.0) - COALESCE(SUM(l.credit), 0.0) AS balance,
-                COUNT(l.id) AS line_count
-            FROM account_move_line l
-            JOIN account_move m ON (l.move_id = m.id)
-            LEFT JOIN res_partner p ON (l.partner_id = p.id)
-            JOIN account_journal j ON (l.journal_id = j.id)
-            JOIN account_account acc ON (l.account_id = acc.id)
-            WHERE
-        """ + " AND ".join(filters) + """
-            GROUP BY l.account_id
-        """
-        params = (tuple(account_ids),) + tuple(where_params)
-        self.env.cr.execute(sql, params)
+        rows = self.env["account.move.line"]._read_group(
+            domain=self._build_owl_move_line_domain(
+                options,
+                account_ids,
+                analytic_accounts=analytic_accounts,
+                partners=partners,
+                initial_balance=initial_balance,
+            ),
+            groupby=["account_id"],
+            aggregates=["debit:sum", "credit:sum", "id:count"],
+        )
         return {
-            row["account_id"]: {
-                "debit": row["debit"] or 0.0,
-                "credit": row["credit"] or 0.0,
-                "balance": row["balance"] or 0.0,
-                "line_count": int(row["line_count"] or 0),
+            account.id: {
+                "debit": debit or 0.0,
+                "credit": credit or 0.0,
+                "balance": (debit or 0.0) - (credit or 0.0),
+                "line_count": int(line_count or 0),
             }
-            for row in self.env.cr.dictfetchall()
+            for account, debit, credit, line_count in rows
         }
 
     @api.model
-    def _get_owl_move_by_line_id(self, move_lines):
-        move_line_ids = [
-            line["lid"] for line in move_lines if line.get("lid")
-        ]
-        if not move_line_ids:
-            return {}
-        return {
-            move_line.id: move_line.move_id.id
-            for move_line in self.env["account.move.line"].browse(move_line_ids).exists()
-        }
-
-    @api.model
-    def _serialize_owl_move_lines(self, account_id, move_lines, move_by_line_id):
+    def _get_owl_account_lines_payload(
+        self, account, options, analytic_accounts=False, partners=False
+    ):
         payload_lines = []
-        for line_index, line in enumerate(move_lines, start=1):
+        running_balance = 0.0
+
+        if options["initial_balance"] and options["date_from"]:
+            initial_totals = self._get_owl_grouped_account_totals(
+                [account.id],
+                options,
+                analytic_accounts=analytic_accounts,
+                partners=partners,
+                initial_balance=True,
+            )
+            initial = initial_totals.get(account.id, {})
+            if initial.get("line_count"):
+                running_balance = initial.get("balance", 0.0)
+                payload_lines.append(
+                    {
+                        "id": f"{account.id}-initial-1",
+                        "move_line_id": False,
+                        "move_id": False,
+                        "date": False,
+                        "journal_code": "",
+                        "reference": "",
+                        "label": "Initial Balance",
+                        "partner_name": "",
+                        "move_name": "",
+                        "currency_id": False,
+                        "currency_code": "",
+                        "amount_currency": 0.0,
+                        "debit": initial.get("debit", 0.0),
+                        "credit": initial.get("credit", 0.0),
+                        "balance": running_balance,
+                        "is_initial_balance": True,
+                    }
+                )
+
+        order = "date, move_id, id"
+        if options["sortby"] == "sort_journal_partner":
+            order = "journal_id, partner_id, move_id, date, id"
+        move_lines = self.env["account.move.line"].search(
+            self._build_owl_move_line_domain(
+                options, [account.id], analytic_accounts=analytic_accounts, partners=partners
+            ),
+            order=order,
+        )
+        for line in move_lines:
+            running_balance += (line.debit or 0.0) - (line.credit or 0.0)
             payload_lines.append(
                 {
-                    "id": line.get("lid") or f"{account_id}-initial-{line_index}",
-                    "move_line_id": line.get("lid") or False,
-                    "move_id": move_by_line_id.get(line.get("lid")) or False,
-                    "date": line.get("ldate") or False,
-                    "journal_code": line.get("lcode") or "",
-                    "reference": line.get("lref") or "",
-                    "label": line.get("lname") or "",
-                    "partner_name": line.get("partner_name") or "",
-                    "move_name": line.get("move_name") or "",
-                    "currency_id": line.get("currency_id") or False,
-                    "currency_code": line.get("currency_code") or "",
-                    "amount_currency": line.get("amount_currency") or 0.0,
-                    "debit": line.get("debit") or 0.0,
-                    "credit": line.get("credit") or 0.0,
-                    "balance": line.get("balance") or 0.0,
-                    "is_initial_balance": not bool(line.get("lid")),
+                    "id": line.id,
+                    "move_line_id": line.id,
+                    "move_id": line.move_id.id,
+                    "date": line.date or False,
+                    "journal_code": line.journal_id.code or "",
+                    "reference": line.ref or "",
+                    "label": line.name or "",
+                    "partner_name": line.partner_id.display_name or "",
+                    "move_name": line.move_name or "",
+                    "currency_id": line.currency_id.id or False,
+                    "currency_code": line.currency_id.symbol or "",
+                    "amount_currency": line.amount_currency or 0.0,
+                    "debit": line.debit or 0.0,
+                    "credit": line.credit or 0.0,
+                    "balance": running_balance,
+                    "is_initial_balance": False,
                 }
             )
         return payload_lines

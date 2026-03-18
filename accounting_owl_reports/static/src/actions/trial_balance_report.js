@@ -10,7 +10,7 @@ export class TrialBalanceReport extends GeneralLedgerReport {
     static props = GeneralLedgerReport.props;
 
     get reportModel() {
-        return "account.balance.report";
+        return "accounting.owl.trial.balance.report";
     }
 
     get hasAccounts() {

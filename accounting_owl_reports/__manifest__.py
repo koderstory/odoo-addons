@@ -3,8 +3,9 @@
     "version": "18.0.1.0.0",
     "summary": "OWL-based accounting reports for Invoicing",
     "category": "Accounting/Accounting",
-    "depends": ["account", "web", "accounting_pdf_reports"],
+    "depends": ["account", "web"],
     "data": [
+        "security/ir.model.access.csv",
         "views/accounting_owl_report_views.xml",
     ],
     "assets": {

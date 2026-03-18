@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_accounting_owl_general_ledger_user,access.accounting.owl.general.ledger.user,model_accounting_owl_general_ledger_report,account.group_account_user,1,1,1,1
+access_accounting_owl_general_ledger_manager,access.accounting.owl.general.ledger.manager,model_accounting_owl_general_ledger_report,account.group_account_manager,1,1,1,1
+access_accounting_owl_trial_balance_user,access.accounting.owl.trial.balance.user,model_accounting_owl_trial_balance_report,account.group_account_user,1,1,1,1
+access_accounting_owl_trial_balance_manager,access.accounting.owl.trial.balance.manager,model_accounting_owl_trial_balance_report,account.group_account_manager,1,1,1,1

@@ -18,13 +18,16 @@ export class GeneralLedgerReport extends Component {
     static props = { ...standardActionServiceProps };
 
     get reportModel() {
-        return "account.report.general.ledger";
+        return "accounting.owl.general.ledger.report";
     }
 
     setup() {
         this.actionService = useService("action");
         this.orm = useService("orm");
         this.display = { controlPanel: {} };
+        this.reportRequestToken = 0;
+        this.accountRequestToken = 0;
+        this.accountRequestTokensById = {};
 
         const savedState = this.props.state || {};
         const savedAmountDisplay = savedState.amountDisplay || "full_decimal";
@@ -520,18 +523,26 @@ export class GeneralLedgerReport extends Component {
 
     async loadReport() {
         this.state.loadingReport = true;
+        const requestToken = ++this.reportRequestToken;
+        this.accountRequestTokensById = {};
         try {
-            this.state.report = await this.orm.call(
+            const report = await this.orm.call(
                 this.reportModel,
                 "get_owl_report_data",
                 [],
                 { options: this.state.options }
             );
+            if (requestToken !== this.reportRequestToken) {
+                return;
+            }
+            this.state.report = report;
             this.state.options = { ...this.state.report.options };
             this.state.accountDetails = {};
             this.collapseAll();
         } finally {
-            this.state.loadingReport = false;
+            if (requestToken === this.reportRequestToken) {
+                this.state.loadingReport = false;
+            }
         }
     }
 
@@ -545,6 +556,9 @@ export class GeneralLedgerReport extends Component {
             return;
         }
         const appliedOptions = this.state.report?.options || this.state.options;
+        const reportRequestToken = this.reportRequestToken;
+        const accountRequestToken = ++this.accountRequestToken;
+        this.accountRequestTokensById[accountId] = accountRequestToken;
         this.state.accountDetails = {
             ...this.state.accountDetails,
             [accountId]: {
@@ -556,11 +570,17 @@ export class GeneralLedgerReport extends Component {
         };
         try {
             const response = await this.orm.call(
-                "account.report.general.ledger",
+                this.reportModel,
                 "get_owl_account_lines",
                 [accountId],
                 { options: appliedOptions }
             );
+            if (
+                reportRequestToken !== this.reportRequestToken
+                || this.accountRequestTokensById[accountId] !== accountRequestToken
+            ) {
+                return;
+            }
             this.state.accountDetails = {
                 ...this.state.accountDetails,
                 [accountId]: {
@@ -571,6 +591,12 @@ export class GeneralLedgerReport extends Component {
                 },
             };
         } catch (error) {
+            if (
+                reportRequestToken !== this.reportRequestToken
+                || this.accountRequestTokensById[accountId] !== accountRequestToken
+            ) {
+                return;
+            }
             this.state.accountDetails = {
                 ...this.state.accountDetails,
                 [accountId]: {
@@ -601,9 +627,9 @@ export class GeneralLedgerReport extends Component {
     async expandAll() {
         const accountIds = (this.state.report?.accounts || []).map((account) => account.id);
         this.state.unfoldedAccountIds = accountIds;
-        for (const accountId of accountIds) {
-            await this.ensureAccountLinesLoaded(accountId);
-        }
+        await Promise.allSettled(
+            accountIds.map((accountId) => this.ensureAccountLinesLoaded(accountId))
+        );
     }
 
     collapseAll() {

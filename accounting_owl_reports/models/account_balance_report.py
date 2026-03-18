@@ -7,7 +7,63 @@ from odoo.exceptions import UserError
 
 
 class AccountBalanceReport(models.TransientModel):
-    _inherit = "account.balance.report"
+    _name = "accounting.owl.trial.balance.report"
+    _description = "Accounting OWL Trial Balance Report"
+
+    company_id = fields.Many2one(
+        "res.company",
+        string="Company",
+        required=True,
+        readonly=True,
+        default=lambda self: self.env.company,
+    )
+    journal_ids = fields.Many2many(
+        "account.journal",
+        "accounting_owl_trial_balance_journal_rel",
+        "wizard_id",
+        "journal_id",
+        string="Journals",
+        required=True,
+        default=lambda self: self.env["account.journal"].search(
+            [("company_id", "=", self.env.company.id)]
+        ),
+        domain="[('company_id', '=', company_id)]",
+    )
+    date_from = fields.Date(string="Start Date")
+    date_to = fields.Date(string="End Date")
+    target_move = fields.Selection(
+        [("posted", "All Posted Entries"), ("all", "All Entries")],
+        string="Target Moves",
+        required=True,
+        default="posted",
+    )
+    display_account = fields.Selection(
+        [
+            ("all", "All"),
+            ("movement", "With movements"),
+            ("not_zero", "With balance is not equal to 0"),
+        ],
+        string="Display Accounts",
+        required=True,
+        default="movement",
+    )
+    account_ids = fields.Many2many("account.account", string="Accounts")
+    analytic_account_ids = fields.Many2many(
+        "account.analytic.account",
+        "accounting_owl_trial_balance_analytic_rel",
+        "wizard_id",
+        "analytic_account_id",
+        string="Analytic Accounts",
+    )
+
+    @api.onchange("company_id")
+    def _onchange_company_id(self):
+        if self.company_id:
+            self.journal_ids = self.env["account.journal"].search(
+                [("company_id", "=", self.company_id.id)]
+            )
+        else:
+            self.journal_ids = self.env["account.journal"].search([])
 
     @api.model
     def _check_owl_report_access(self):
@@ -109,25 +165,21 @@ class AccountBalanceReport(models.TransientModel):
         if initial_anchor_start:
             initial_totals = self._get_owl_grouped_account_totals(
                 accounts.ids,
-                self._build_owl_query_context(
-                    options,
-                    analytic_accounts=analytic_accounts,
-                    date_from=initial_anchor_start,
-                    date_to=False,
-                    initial_balance=True,
-                ),
+                options,
+                analytic_accounts=analytic_accounts,
+                date_from=initial_anchor_start,
+                date_to=False,
+                initial_balance=True,
             )
 
         period_totals = {}
         for period in period_config["periods"]:
             period_totals[period["key"]] = self._get_owl_grouped_account_totals(
                 accounts.ids,
-                self._build_owl_query_context(
-                    options,
-                    analytic_accounts=analytic_accounts,
-                    date_from=period["date_from"],
-                    date_to=period["date_to"],
-                ),
+                options,
+                analytic_accounts=analytic_accounts,
+                date_from=period["date_from"],
+                date_to=period["date_to"],
             )
 
         payload_accounts = []
@@ -317,35 +369,33 @@ class AccountBalanceReport(models.TransientModel):
         return options
 
     @api.model
-    def _build_owl_context(self, options, date_from=False, date_to=False):
-        company = self.env.company
-        return {
-            "journal_ids": options["journal_ids"] or False,
-            "state": options["target_move"],
-            "date_from": date_from or False,
-            "date_to": date_to or False,
-            "strict_range": bool(date_from),
-            "company_id": company.id,
-            "allowed_company_ids": [company.id],
-            "lang": self.env.lang,
-        }
-
-    @api.model
-    def _build_owl_query_context(
+    def _build_owl_move_line_domain(
         self,
         options,
+        account_ids,
         analytic_accounts=False,
         date_from=False,
         date_to=False,
         initial_balance=False,
     ):
-        context = dict(self._build_owl_context(options, date_from, date_to))
+        domain = [
+            ("display_type", "not in", ("line_section", "line_note")),
+            ("parent_state", "!=", "cancel"),
+            ("company_id", "=", self.env.company.id),
+            ("account_id", "in", account_ids),
+        ]
+        if date_to and not initial_balance:
+            domain.append(("date", "<=", date_to))
+        if date_from:
+            operator = "<" if initial_balance else ">="
+            domain.append(("date", operator, date_from))
+        if options["journal_ids"]:
+            domain.append(("journal_id", "in", options["journal_ids"]))
+        if options["target_move"] != "all":
+            domain.append(("parent_state", "=", options["target_move"]))
         if analytic_accounts:
-            context["analytic_account_ids"] = analytic_accounts
-        if initial_balance:
-            context["date_to"] = False
-            context["initial_bal"] = True
-        return context
+            domain.append(("analytic_distribution", "in", analytic_accounts.ids))
+        return domain
 
     @api.model
     def _get_owl_accounts(self, options):
@@ -521,44 +571,36 @@ class AccountBalanceReport(models.TransientModel):
         return (balance, 0.0) if balance >= 0 else (0.0, abs(balance))
 
     @api.model
-    def _get_owl_grouped_account_totals(self, account_ids, context):
+    def _get_owl_grouped_account_totals(
+        self,
+        account_ids,
+        options,
+        analytic_accounts=False,
+        date_from=False,
+        date_to=False,
+        initial_balance=False,
+    ):
         if not account_ids:
             return {}
-
-        move_line_model = self.env["account.move.line"]
-        _, where_clause, where_params = move_line_model.with_context(context)._query_get()
-        filters = ["l.account_id IN %s"]
-        if where_clause.strip():
-            filters.append(
-                where_clause.strip()
-                .replace("account_move_line__move_id", "m")
-                .replace("account_move_line", "l")
-            )
-
-        sql = """
-            SELECT
-                l.account_id AS account_id,
-                COALESCE(SUM(l.debit), 0.0) AS debit,
-                COALESCE(SUM(l.credit), 0.0) AS credit,
-                COALESCE(SUM(l.debit), 0.0) - COALESCE(SUM(l.credit), 0.0) AS balance
-            FROM account_move_line l
-            JOIN account_move m ON (l.move_id = m.id)
-            LEFT JOIN res_partner p ON (l.partner_id = p.id)
-            JOIN account_journal j ON (l.journal_id = j.id)
-            JOIN account_account acc ON (l.account_id = acc.id)
-            WHERE
-        """ + " AND ".join(filters) + """
-            GROUP BY l.account_id
-        """
-        params = (tuple(account_ids),) + tuple(where_params)
-        self.env.cr.execute(sql, params)
+        rows = self.env["account.move.line"]._read_group(
+            domain=self._build_owl_move_line_domain(
+                options,
+                account_ids,
+                analytic_accounts=analytic_accounts,
+                date_from=date_from,
+                date_to=date_to,
+                initial_balance=initial_balance,
+            ),
+            groupby=["account_id"],
+            aggregates=["debit:sum", "credit:sum"],
+        )
         return {
-            row["account_id"]: {
-                "debit": row["debit"] or 0.0,
-                "credit": row["credit"] or 0.0,
-                "balance": row["balance"] or 0.0,
+            account.id: {
+                "debit": debit or 0.0,
+                "credit": credit or 0.0,
+                "balance": (debit or 0.0) - (credit or 0.0),
             }
-            for row in self.env.cr.dictfetchall()
+            for account, debit, credit in rows
         }
 
     @api.model
