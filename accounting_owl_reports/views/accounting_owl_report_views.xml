@@ -6,6 +6,11 @@
         <field name="tag">accounting_owl_reports.general_ledger</field>
     </record>
 
+    <record id="action_accounting_owl_trial_balance" model="ir.actions.client">
+        <field name="name">Trial Balance</field>
+        <field name="tag">accounting_owl_reports.trial_balance</field>
+    </record>
+
     <menuitem
         id="menu_accounting_owl_reports"
         name="OWL Reports"
@@ -20,6 +25,15 @@
         parent="menu_accounting_owl_reports"
         action="action_accounting_owl_general_ledger"
         sequence="10"
+        groups="account.group_account_user,account.group_account_manager"
+    />
+
+    <menuitem
+        id="menu_accounting_owl_trial_balance"
+        name="Trial Balance"
+        parent="menu_accounting_owl_reports"
+        action="action_accounting_owl_trial_balance"
+        sequence="20"
         groups="account.group_account_user,account.group_account_manager"
     />
 

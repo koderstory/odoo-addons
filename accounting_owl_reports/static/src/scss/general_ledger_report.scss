@@ -74,7 +74,14 @@
     .o_control_panel .o_control_panel_navigation {
         flex-wrap: nowrap;
         align-items: center;
+        justify-content: flex-end;
+        flex: 1 1 auto;
         min-width: 0;
+    }
+
+    .o_control_panel .o_control_panel_breadcrumbs {
+        flex: 0 0 auto;
+        min-width: auto;
     }
 
     .o_gl_cp_filters {
@@ -82,9 +89,10 @@
         flex-wrap: nowrap;
         gap: 0.4rem;
         align-items: center;
-        justify-content: flex-end;
-        flex: 1 1 auto;
-        min-width: 0;
+        justify-content: flex-start;
+        flex: 0 1 auto;
+        min-width: max-content;
+        max-width: 100%;
         align-self: center;
         margin-left: auto;
         overflow-x: auto;
@@ -103,14 +111,21 @@
         min-width: 160px;
         max-width: 280px;
         flex: 1 1 220px;
+        min-height: 38px;
         padding: 0 0.75rem;
         border: 1px solid #d7dce3;
         border-radius: 0.375rem;
         background: #fff;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     .o_gl_search_box input {
         min-width: 0;
+        height: 100%;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.25;
     }
 
     .o_gl_summary_chip {

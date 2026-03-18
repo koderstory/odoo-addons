@@ -17,22 +17,24 @@ export class GeneralLedgerReport extends Component {
     static components = { Layout, MultiRecordSelector, Dropdown, DropdownItem };
     static props = { ...standardActionServiceProps };
 
+    get reportModel() {
+        return "account.report.general.ledger";
+    }
+
     setup() {
         this.actionService = useService("action");
         this.orm = useService("orm");
         this.display = { controlPanel: {} };
 
         const savedState = this.props.state || {};
-        const savedAmountDisplay =
-            savedState.amountDisplay && savedState.amountDisplay !== "full"
-                ? savedState.amountDisplay
-                : "full_decimal";
+        const savedAmountDisplay = savedState.amountDisplay || "full_decimal";
         this.state = useState({
             loading: true,
             loadingReport: false,
             meta: savedState.meta || null,
             options: savedState.options || null,
             report: savedState.report || null,
+            accountDetails: savedState.accountDetails || {},
             unfoldedAccountIds: savedState.unfoldedAccountIds || [],
             searchTerm: savedState.searchTerm || "",
             amountDisplay: savedAmountDisplay,
@@ -41,7 +43,7 @@ export class GeneralLedgerReport extends Component {
         onWillStart(async () => {
             if (!this.state.meta || !this.state.options) {
                 const meta = await this.orm.call(
-                    "account.report.general.ledger",
+                    this.reportModel,
                     "get_owl_initial_data",
                     []
                 );
@@ -62,6 +64,7 @@ export class GeneralLedgerReport extends Component {
                 meta: this.state.meta,
                 options: { ...this.state.options },
                 report: this.state.report,
+                accountDetails: this.state.accountDetails,
                 unfoldedAccountIds: [...this.state.unfoldedAccountIds],
                 searchTerm: this.state.searchTerm,
                 amountDisplay: this.state.amountDisplay,
@@ -244,7 +247,7 @@ export class GeneralLedgerReport extends Component {
                 result.push(account);
                 return result;
             }
-            const filteredLines = (account.move_lines || []).filter((line) => {
+            const filteredLines = this.getAccountLines(account.id).filter((line) => {
                 const lineText = [
                     line.move_name,
                     line.reference,
@@ -260,8 +263,7 @@ export class GeneralLedgerReport extends Component {
             if (filteredLines.length) {
                 result.push({
                     ...account,
-                    move_lines: filteredLines,
-                    line_count: filteredLines.length,
+                    filtered_move_lines: filteredLines,
                 });
             }
             return result;
@@ -368,6 +370,33 @@ export class GeneralLedgerReport extends Component {
 
     isJournalSelected(journalId) {
         return (this.state.options?.journal_ids || []).includes(journalId);
+    }
+
+    getAccountDetail(accountId) {
+        return (
+            this.state.accountDetails?.[accountId] || {
+                loaded: false,
+                loading: false,
+                lines: [],
+                error: null,
+            }
+        );
+    }
+
+    getAccountLines(accountId) {
+        return this.getAccountDetail(accountId).lines || [];
+    }
+
+    getAccountLinesForDisplay(account) {
+        return account.filtered_move_lines || this.getAccountLines(account.id);
+    }
+
+    isAccountLinesLoading(accountId) {
+        return this.getAccountDetail(accountId).loading;
+    }
+
+    getAccountLinesError(accountId) {
+        return this.getAccountDetail(accountId).error;
     }
 
     parseDate(value) {
@@ -493,11 +522,13 @@ export class GeneralLedgerReport extends Component {
         this.state.loadingReport = true;
         try {
             this.state.report = await this.orm.call(
-                "account.report.general.ledger",
+                this.reportModel,
                 "get_owl_report_data",
                 [],
                 { options: this.state.options }
             );
+            this.state.options = { ...this.state.report.options };
+            this.state.accountDetails = {};
             this.collapseAll();
         } finally {
             this.state.loadingReport = false;
@@ -508,20 +539,71 @@ export class GeneralLedgerReport extends Component {
         return this.state.unfoldedAccountIds.includes(accountId);
     }
 
-    toggleAccount(accountId) {
+    async ensureAccountLinesLoaded(accountId, force = false) {
+        const detail = this.getAccountDetail(accountId);
+        if (!force && (detail.loaded || detail.loading)) {
+            return;
+        }
+        const appliedOptions = this.state.report?.options || this.state.options;
+        this.state.accountDetails = {
+            ...this.state.accountDetails,
+            [accountId]: {
+                loaded: false,
+                loading: true,
+                lines: detail.lines || [],
+                error: null,
+            },
+        };
+        try {
+            const response = await this.orm.call(
+                "account.report.general.ledger",
+                "get_owl_account_lines",
+                [accountId],
+                { options: appliedOptions }
+            );
+            this.state.accountDetails = {
+                ...this.state.accountDetails,
+                [accountId]: {
+                    loaded: true,
+                    loading: false,
+                    lines: response.lines || [],
+                    error: null,
+                },
+            };
+        } catch (error) {
+            this.state.accountDetails = {
+                ...this.state.accountDetails,
+                [accountId]: {
+                    loaded: false,
+                    loading: false,
+                    lines: [],
+                    error: error?.message || "Unable to load journal items.",
+                },
+            };
+        }
+    }
+
+    async reloadAccountLines(accountId) {
+        await this.ensureAccountLinesLoaded(accountId, true);
+    }
+
+    async toggleAccount(accountId) {
         if (this.isUnfolded(accountId)) {
             this.state.unfoldedAccountIds = this.state.unfoldedAccountIds.filter(
                 (id) => id !== accountId
             );
         } else {
             this.state.unfoldedAccountIds = [...this.state.unfoldedAccountIds, accountId];
+            await this.ensureAccountLinesLoaded(accountId);
         }
     }
 
-    expandAll() {
-        this.state.unfoldedAccountIds = (this.state.report?.accounts || []).map(
-            (account) => account.id
-        );
+    async expandAll() {
+        const accountIds = (this.state.report?.accounts || []).map((account) => account.id);
+        this.state.unfoldedAccountIds = accountIds;
+        for (const accountId of accountIds) {
+            await this.ensureAccountLinesLoaded(accountId);
+        }
     }
 
     collapseAll() {

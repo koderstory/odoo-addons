@@ -1,0 +1,175 @@
+.o-dropdown--menu.o_tb_filter_menu_comparison {
+    min-width: 320px;
+}
+
+.o-dropdown--menu.o_tb_filter_menu_comparison .o_tb_comparison_count {
+    max-width: 96px;
+}
+
+.o-dropdown--menu.o_tb_filter_menu_comparison .o_tb_comparison_item {
+    display: flex;
+    align-items: center;
+}
+
+.o_accounting_owl_trial_balance {
+    .o_control_panel .o_control_panel_navigation {
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .o_control_panel .o_control_panel_breadcrumbs {
+        flex: 0 0 auto;
+        min-width: auto;
+    }
+
+    .o_gl_cp_filters {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        align-items: center;
+        justify-content: flex-start;
+        flex: 0 1 auto;
+        min-width: max-content;
+        max-width: 100%;
+        align-self: center;
+        margin-left: auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .o_gl_cp_filters > * {
+        flex: 0 0 auto;
+    }
+
+    .o_gl_search_box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 160px;
+        max-width: 280px;
+        flex: 1 1 220px;
+        min-height: 38px;
+        padding: 0 0.75rem;
+        border: 1px solid #d7dce3;
+        border-radius: 0.375rem;
+        background: #fff;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .o_gl_search_box input {
+        min-width: 0;
+        height: 100%;
+        padding-top: 0;
+        padding-bottom: 0;
+        line-height: 1.25;
+    }
+
+    .o_gl_summary_chip {
+        white-space: nowrap;
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .o_gl_summary_chip:hover,
+    .o_gl_summary_chip:focus {
+        background: #e5e7eb;
+        border-color: #d1d5db;
+    }
+
+    .o_tb_table_wrap {
+        overflow: hidden;
+    }
+
+    .o_tb_table {
+        margin-bottom: 0;
+    }
+
+    .o_tb_table thead th {
+        white-space: nowrap;
+        font-weight: 600;
+        background: #fff;
+        border-bottom-width: 1px;
+    }
+
+    .o_tb_account_col,
+    .o_tb_account_cell {
+        min-width: 260px;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #fff;
+    }
+
+    .o_tb_account_col {
+        z-index: 3;
+    }
+
+    .o_tb_current_group,
+    .o_tb_comparison_group {
+        background: #fff;
+    }
+
+    .o_tb_debit_col {
+        background: #fff;
+        border-right: 1px solid #d7dce3;
+    }
+
+    .o_tb_credit_col {
+        background: #f3f4f6;
+    }
+
+    .o_tb_balance_group {
+        background: #f3f4f6 !important;
+    }
+
+    .o_tb_table thead .o_tb_balance_group {
+        background: #f3f4f6;
+    }
+
+    .o_tb_table tbody .o_tb_balance_group.o_tb_debit_col,
+    .o_tb_table tfoot .o_tb_balance_group.o_tb_debit_col {
+        background: #f3f4f6 !important;
+    }
+
+    .o_tb_table tbody .o_tb_balance_group.o_tb_credit_col,
+    .o_tb_table tfoot .o_tb_balance_group.o_tb_credit_col {
+        background: #f3f4f6 !important;
+    }
+
+    .o_tb_group_label,
+    .o_tb_group_start {
+        border-left: 1px solid #d7dce3 !important;
+    }
+
+    .o_tb_group_end {
+        border-right: 1px solid #e5e7eb;
+    }
+
+    .o_tb_total_row td {
+        background: #f3f4f6;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .table td,
+    .table th {
+        vertical-align: middle;
+    }
+
+    @media (max-width: 991.98px) {
+        .o_control_panel .o_control_panel_navigation {
+            flex-wrap: wrap;
+        }
+
+        .o_gl_cp_filters {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            overflow-x: visible;
+        }
+    }
+}

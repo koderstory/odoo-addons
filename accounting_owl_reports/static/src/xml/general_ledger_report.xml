@@ -263,40 +263,65 @@
                                                 </tr>
 
                                                 <t t-if="isUnfolded(account.id)">
-                                                    <t t-foreach="account.move_lines" t-as="line" t-key="line.id">
-                                                        <tr t-att-class="line.is_initial_balance ? 'o_gl_initial_row' : 'o_gl_line_row'">
-                                                            <td class="ps-4">
-                                                                <t t-if="line.is_initial_balance">
-                                                                    <span class="fw-medium">Initial Balance</span>
-                                                                </t>
-                                                                <t t-else="">
-                                                                    <t t-if="line.move_line_id">
-                                                                        <button
-                                                                            type="button"
-                                                                            class="btn btn-link p-0 align-baseline text-start"
-                                                                            t-on-click.stop="() => this.openMoveLine(line)"
-                                                                        >
-                                                                            <span t-esc="line.move_name || line.reference || line.label"/>
-                                                                        </button>
+                                                    <t t-if="isAccountLinesLoading(account.id)">
+                                                        <tr class="o_gl_loading_row">
+                                                            <td colspan="7" class="text-muted fst-italic py-3">
+                                                                Loading journal items...
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                    <t t-elif="getAccountLinesError(account.id)">
+                                                        <tr class="o_gl_error_row">
+                                                            <td colspan="7" class="py-3">
+                                                                <div class="d-flex align-items-center justify-content-between gap-3">
+                                                                    <span class="text-danger" t-esc="getAccountLinesError(account.id)"/>
+                                                                    <button
+                                                                        type="button"
+                                                                        class="btn btn-outline-secondary btn-sm"
+                                                                        t-on-click.stop="() => this.reloadAccountLines(account.id)"
+                                                                    >
+                                                                        Retry
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <t t-foreach="getAccountLinesForDisplay(account)" t-as="line" t-key="line.id">
+                                                            <tr t-att-class="line.is_initial_balance ? 'o_gl_initial_row' : 'o_gl_line_row'">
+                                                                <td class="ps-4">
+                                                                    <t t-if="line.is_initial_balance">
+                                                                        <span class="fw-medium">Initial Balance</span>
                                                                     </t>
                                                                     <t t-else="">
-                                                                        <span t-esc="line.move_name || line.reference || line.label"/>
+                                                                        <t t-if="line.move_line_id">
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-link p-0 align-baseline text-start"
+                                                                                t-on-click.stop="() => this.openMoveLine(line)"
+                                                                            >
+                                                                                <span t-esc="line.move_name || line.reference || line.label"/>
+                                                                            </button>
+                                                                        </t>
+                                                                        <t t-else="">
+                                                                            <span t-esc="line.move_name || line.reference || line.label"/>
+                                                                        </t>
                                                                     </t>
-                                                                </t>
-                                                            </td>
-                                                            <td t-esc="formatLineDate(line.date)"/>
-                                                            <td>
-                                                                <span t-esc="line.label || line.reference"/>
-                                                            </td>
-                                                            <td t-esc="line.partner_name"/>
-                                                            <td class="text-end" t-esc="formatMoney(line.debit)"/>
-                                                            <td class="text-end" t-esc="formatMoney(line.credit)"/>
-                                                            <td
-                                                                class="text-end"
-                                                                t-att-class="line.balance &lt; 0 ? 'text-danger' : ''"
-                                                                t-esc="formatMoney(line.balance)"
-                                                            />
-                                                        </tr>
+                                                                </td>
+                                                                <td t-esc="formatLineDate(line.date)"/>
+                                                                <td>
+                                                                    <span t-esc="line.label || line.reference"/>
+                                                                </td>
+                                                                <td t-esc="line.partner_name"/>
+                                                                <td class="text-end" t-esc="formatMoney(line.debit)"/>
+                                                                <td class="text-end" t-esc="formatMoney(line.credit)"/>
+                                                                <td
+                                                                    class="text-end"
+                                                                    t-att-class="line.balance &lt; 0 ? 'text-danger' : ''"
+                                                                    t-esc="formatMoney(line.balance)"
+                                                                />
+                                                            </tr>
+                                                        </t>
                                                     </t>
                                                     <tr class="o_gl_total_row">
                                                         <td class="ps-4 fw-semibold">

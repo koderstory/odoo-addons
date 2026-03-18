@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="accounting_owl_reports.TrialBalanceReport">
+        <div class="o_action o_accounting_owl_trial_balance">
+            <Layout display="display">
+                <t t-set-slot="layout-buttons">
+                    <div class="o_cp_buttons d-flex gap-2" role="toolbar" aria-label="Trial balance actions">
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            t-on-click="this.onApplyFilters"
+                            t-att-disabled="state.loadingReport"
+                        >
+                            <t t-if="state.loadingReport">Loading...</t>
+                            <t t-else="">Apply</t>
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            t-on-click="this.onResetFilters"
+                            t-att-disabled="state.loadingReport"
+                        >
+                            Reset
+                        </button>
+                    </div>
+                </t>
+
+                <t t-set-slot="control-panel-navigation-additional">
+                    <div class="o_gl_cp_filters">
+                        <div class="o_gl_search_box">
+                            <i class="fa fa-search text-muted"/>
+                            <input
+                                class="form-control border-0 shadow-none"
+                                type="text"
+                                placeholder="Search..."
+                                t-att-value="state.searchTerm"
+                                t-on-input="(ev) => this.updateSearchTerm(ev)"
+                            />
+                        </div>
+
+                        <Dropdown menuClass="'o_gl_filter_menu o_gl_filter_menu_date'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-calendar me-1"/>
+                                <span t-esc="dateRangeSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <div class="o_gl_filter_group o_gl_date_picker_group">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label form-label-sm o_gl_field_label">Year</label>
+                                            <select
+                                                class="form-select form-select-sm"
+                                                t-on-change="(ev) => this.selectDateYear(ev)"
+                                            >
+                                                <t t-foreach="availableYears" t-as="year" t-key="year">
+                                                    <option
+                                                        t-att-value="year"
+                                                        t-att-selected="year === selectedDateYear ? 'selected' : undefined"
+                                                        t-esc="year"
+                                                    />
+                                                </t>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label form-label-sm o_gl_field_label">Month</label>
+                                            <select
+                                                class="form-select form-select-sm"
+                                                t-on-change="(ev) => this.selectDateMonth(ev)"
+                                            >
+                                                <t t-foreach="monthOptions" t-as="month" t-key="month.value">
+                                                    <option
+                                                        t-att-value="month.value"
+                                                        t-att-selected="month.value === selectedDateMonth ? 'selected' : undefined"
+                                                        t-esc="month.label"
+                                                    />
+                                                </t>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dropdown-divider"/>
+                                <div class="o_gl_filter_group o_gl_date_custom_group">
+                                    <div class="o_gl_filter_group_title mb-2">Custom Dates</div>
+                                    <input
+                                        class="form-control form-control-sm"
+                                        type="date"
+                                        t-att-value="state.options.date_from || ''"
+                                        t-on-change="(ev) => this.updateDateOption('date_from', ev)"
+                                    />
+                                    <input
+                                        class="form-control form-control-sm mt-2"
+                                        type="date"
+                                        t-att-value="state.options.date_to || ''"
+                                        t-on-change="(ev) => this.updateDateOption('date_to', ev)"
+                                    />
+                                </div>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu o_tb_filter_menu_comparison'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-percent me-1"/>
+                                <span t-esc="comparisonSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem
+                                    closingMode="'none'"
+                                    onSelected="() => this.selectComparisonMode('no_comparison')"
+                                >
+                                    <span t-if="state.options.comparison_mode === 'no_comparison'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    No Comparison
+                                </DropdownItem>
+                                <div class="o_gl_filter_group pt-2 pb-2">
+                                    <button
+                                        type="button"
+                                        class="dropdown-item px-0 o_tb_comparison_item"
+                                        t-on-click="() => this.selectComparisonMode('previous_period')"
+                                    >
+                                        <span t-if="state.options.comparison_mode === 'previous_period'" class="fa fa-check me-2 text-success"/>
+                                        <span t-else="" class="fa fa-fw me-2"/>
+                                        <span>Previous Period</span>
+                                    </button>
+                                    <div
+                                        class="d-flex align-items-center gap-2 mt-2 ps-4"
+                                        t-if="state.options.comparison_mode === 'previous_period'"
+                                    >
+                                        <input
+                                            class="form-control form-control-sm o_tb_comparison_count"
+                                            type="number"
+                                            min="1"
+                                            max="12"
+                                            t-att-value="state.options.comparison_period_count || 10"
+                                            t-on-input="(ev) => this.updateComparisonPeriodCount(ev)"
+                                        />
+                                        <span class="text-muted small">Periods</span>
+                                    </div>
+                                </div>
+                                <DropdownItem
+                                    closingMode="'none'"
+                                    onSelected="() => this.selectComparisonMode('same_period_last_year')"
+                                >
+                                    <span t-if="state.options.comparison_mode === 'same_period_last_year'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    Same Period Last Year
+                                </DropdownItem>
+                                <div class="o_gl_filter_group pt-2 pb-2">
+                                    <button
+                                        type="button"
+                                        class="dropdown-item px-0 o_tb_comparison_item"
+                                        t-on-click="() => this.selectComparisonMode('custom_date')"
+                                    >
+                                        <span t-if="state.options.comparison_mode === 'custom_date'" class="fa fa-check me-2 text-success"/>
+                                        <span t-else="" class="fa fa-fw me-2"/>
+                                        <span>Custom Dates</span>
+                                    </button>
+                                    <div t-if="state.options.comparison_mode === 'custom_date'" class="ps-4 mt-2">
+                                        <input
+                                            class="form-control form-control-sm"
+                                            type="date"
+                                            t-att-value="state.options.comparison_date_from || ''"
+                                            t-on-change="(ev) => this.updateComparisonDateOption('comparison_date_from', ev)"
+                                        />
+                                        <input
+                                            class="form-control form-control-sm mt-2"
+                                            type="date"
+                                            t-att-value="state.options.comparison_date_to || ''"
+                                            t-on-change="(ev) => this.updateComparisonDateOption('comparison_date_to', ev)"
+                                        />
+                                    </div>
+                                </div>
+                                <div class="dropdown-divider"/>
+                                <div class="o_gl_filter_group o_tb_period_order_row">
+                                    <div class="o_gl_filter_group_title mb-2">Period order</div>
+                                    <select
+                                        class="form-select form-select-sm"
+                                        t-att-value="state.options.comparison_order"
+                                        t-on-change="(ev) => this.updateComparisonOrder(ev)"
+                                    >
+                                        <t t-foreach="getSelection('comparison_order')" t-as="option" t-key="option.value">
+                                            <option
+                                                t-att-value="option.value"
+                                                t-att-selected="option.value === state.options.comparison_order ? 'selected' : undefined"
+                                                t-esc="option.label"
+                                            />
+                                        </t>
+                                    </select>
+                                </div>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-book me-1"/>
+                                <span t-esc="journalSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <t t-foreach="state.meta.journals" t-as="journal" t-key="journal.id">
+                                    <DropdownItem
+                                        closingMode="'none'"
+                                        onSelected="() => this.toggleJournalId(journal.id)"
+                                    >
+                                        <span t-if="this.isJournalSelected(journal.id)" class="fa fa-check me-2 text-success"/>
+                                        <span t-else="" class="fa fa-fw me-2"/>
+                                        <span t-esc="journal.code || journal.name"/>
+                                    </DropdownItem>
+                                </t>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu o_gl_filter_menu_wide'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-filter me-1"/>
+                                <span t-esc="analyticSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <div class="o_gl_filter_group">
+                                    <div class="o_gl_filter_group_title">Accounts</div>
+                                    <MultiRecordSelector
+                                        t-props="getSelectorProps(
+                                            'account.account',
+                                            'account_ids',
+                                            state.meta.domains.accounts,
+                                            'Accounts',
+                                            'Accounts'
+                                        )"
+                                    />
+                                    <div class="o_gl_filter_group_title mt-3" t-if="state.meta.features.analytic_filter">Analytic Accounts</div>
+                                    <MultiRecordSelector
+                                        t-if="state.meta.features.analytic_filter"
+                                        t-props="getSelectorProps(
+                                            'account.analytic.account',
+                                            'analytic_account_ids',
+                                            state.meta.domains.analytic_accounts,
+                                            'Analytic Accounts',
+                                            'Analytic Accounts'
+                                        )"
+                                    />
+                                </div>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-bars me-1"/>
+                                <span t-esc="displayAccountSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.selectDisplayAccount('all')">
+                                    <span t-if="state.options.display_account === 'all'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    All
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.selectDisplayAccount('movement')">
+                                    <span t-if="state.options.display_account === 'movement'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    Movement
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.selectDisplayAccount('not_zero')">
+                                    <span t-if="state.options.display_account === 'not_zero'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    Not Zero
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-sliders me-1"/>
+                                <span t-esc="targetMoveSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.selectTargetMove('posted')">
+                                    <span t-if="state.options.target_move === 'posted'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    All Posted Entries
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.selectTargetMove('all')">
+                                    <span t-if="state.options.target_move === 'all'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    All Entries
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <span t-esc="amountDisplaySummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.setAmountDisplay('full_decimal')">
+                                    <span t-if="state.amountDisplay === 'full_decimal'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayFullDecimalLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('full')">
+                                    <span t-if="state.amountDisplay === 'full'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayFullLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('k')">
+                                    <span t-if="state.amountDisplay === 'k'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayKLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('m')">
+                                    <span t-if="state.amountDisplay === 'm'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayMLabel"/>
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+                    </div>
+                </t>
+
+                <div class="container-fluid pb-3">
+                    <t t-if="state.loading">
+                        <div class="o_view_nocontent">
+                            <div class="o_nocontent_help">
+                                <p class="o_view_nocontent_smiling_face">Loading trial balance...</p>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-else="">
+                        <t t-if="state.report">
+                            <t t-if="hasAccounts">
+                                <div class="card shadow-sm border-0 o_tb_table_wrap">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0 o_tb_table">
+                                            <thead>
+                                                <tr>
+                                                    <th rowspan="2" class="o_tb_account_col">Account</th>
+                                                    <th colspan="2" class="text-center o_tb_group_label o_tb_group_start o_tb_balance_group">Initial Balance</th>
+                                                    <t t-foreach="state.report.periods" t-as="period" t-key="period.key">
+                                                        <th
+                                                            colspan="2"
+                                                            class="text-center o_tb_group_label o_tb_group_start"
+                                                            t-att-class="period.is_current ? 'o_tb_group_label o_tb_group_start o_tb_current_group' : 'o_tb_group_label o_tb_group_start o_tb_comparison_group'"
+                                                            t-esc="period.label"
+                                                        />
+                                                    </t>
+                                                    <th colspan="2" class="text-center o_tb_group_label o_tb_group_start o_tb_balance_group">End Balance</th>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-end o_tb_group_start o_tb_debit_col o_tb_balance_group">Debit</th>
+                                                    <th class="text-end o_tb_group_end o_tb_credit_col o_tb_balance_group">Credit</th>
+                                                    <t t-foreach="state.report.periods" t-as="period" t-key="period.key + '_sub'">
+                                                        <t>
+                                                            <th
+                                                                class="text-end o_tb_group_start o_tb_debit_col"
+                                                                t-att-class="period.is_current ? 'o_tb_group_start o_tb_current_group' : 'o_tb_group_start o_tb_comparison_group'"
+                                                            >
+                                                                Debit
+                                                            </th>
+                                                            <th
+                                                                class="text-end o_tb_group_end o_tb_credit_col"
+                                                                t-att-class="period.is_current ? 'o_tb_group_end o_tb_current_group' : 'o_tb_group_end o_tb_comparison_group'"
+                                                            >
+                                                                Credit
+                                                            </th>
+                                                        </t>
+                                                    </t>
+                                                    <th class="text-end o_tb_group_start o_tb_debit_col o_tb_balance_group">Debit</th>
+                                                    <th class="text-end o_tb_group_end o_tb_credit_col o_tb_balance_group">Credit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <t t-foreach="filteredAccounts" t-as="account" t-key="account.id">
+                                                    <tr>
+                                                        <td class="o_tb_account_cell">
+                                                            <span class="text-muted me-2" t-esc="account.code"/>
+                                                            <span t-esc="account.name"/>
+                                                        </td>
+                                                        <td class="text-end o_tb_group_start o_tb_debit_col o_tb_balance_group" t-esc="formatMoney(account.initial_balance.debit)"/>
+                                                        <td class="text-end o_tb_group_end o_tb_credit_col o_tb_balance_group" t-esc="formatMoney(account.initial_balance.credit)"/>
+                                                        <t t-foreach="state.report.periods" t-as="period" t-key="account.id + '_' + period.key">
+                                                            <t>
+                                                                <td
+                                                                    class="text-end o_tb_group_start o_tb_debit_col"
+                                                                    t-att-class="period.is_current ? 'o_tb_group_start o_tb_current_group' : 'o_tb_group_start o_tb_comparison_group'"
+                                                                    t-esc="formatMoney(getPeriodValue(account, period.key).debit)"
+                                                                />
+                                                                <td
+                                                                    class="text-end o_tb_group_end o_tb_credit_col"
+                                                                    t-att-class="period.is_current ? 'o_tb_group_end o_tb_current_group' : 'o_tb_group_end o_tb_comparison_group'"
+                                                                    t-esc="formatMoney(getPeriodValue(account, period.key).credit)"
+                                                                />
+                                                            </t>
+                                                        </t>
+                                                        <td class="text-end fw-semibold o_tb_group_start o_tb_debit_col o_tb_balance_group" t-esc="formatMoney(account.ending_balance.debit)"/>
+                                                        <td class="text-end fw-semibold o_tb_group_end o_tb_credit_col o_tb_balance_group" t-esc="formatMoney(account.ending_balance.credit)"/>
+                                                    </tr>
+                                                </t>
+                                                <tr class="o_tb_total_row">
+                                                    <td class="fw-semibold">Total</td>
+                                                    <td class="text-end fw-semibold o_tb_group_start o_tb_debit_col o_tb_balance_group" t-esc="formatMoney(state.report.summary.initial_balance.debit)"/>
+                                                    <td class="text-end fw-semibold o_tb_group_end o_tb_credit_col o_tb_balance_group" t-esc="formatMoney(state.report.summary.initial_balance.credit)"/>
+                                                    <t t-foreach="state.report.periods" t-as="period" t-key="period.key + '_total'">
+                                                        <t>
+                                                            <td
+                                                                class="text-end fw-semibold o_tb_group_start o_tb_debit_col"
+                                                                t-att-class="period.is_current ? 'o_tb_group_start o_tb_current_group' : 'o_tb_group_start o_tb_comparison_group'"
+                                                                t-esc="formatMoney(getPeriodTotal(period.key).debit)"
+                                                            />
+                                                            <td
+                                                                class="text-end fw-semibold o_tb_group_end o_tb_credit_col"
+                                                                t-att-class="period.is_current ? 'o_tb_group_end o_tb_current_group' : 'o_tb_group_end o_tb_comparison_group'"
+                                                                t-esc="formatMoney(getPeriodTotal(period.key).credit)"
+                                                            />
+                                                        </t>
+                                                    </t>
+                                                    <td class="text-end fw-semibold o_tb_group_start o_tb_debit_col o_tb_balance_group" t-esc="formatMoney(state.report.summary.ending_balance.debit)"/>
+                                                    <td class="text-end fw-semibold o_tb_group_end o_tb_credit_col o_tb_balance_group" t-esc="formatMoney(state.report.summary.ending_balance.credit)"/>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="o_view_nocontent bg-white rounded-3 shadow-sm">
+                                    <div class="o_nocontent_help">
+                                        <p class="o_view_nocontent_smiling_face">No trial balance lines match these filters.</p>
+                                    </div>
+                                </div>
+                            </t>
+                        </t>
+                    </t>
+                </div>
+            </Layout>
+        </div>
+    </t>
+
+</templates>
