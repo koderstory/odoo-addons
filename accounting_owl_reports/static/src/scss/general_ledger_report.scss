@@ -1,0 +1,202 @@
+.o-dropdown--menu.o_gl_filter_menu {
+    min-width: 220px;
+}
+
+.o-dropdown--menu.o_gl_filter_menu.dropdown-menu {
+    padding: 0.35rem 0;
+}
+
+.o-dropdown--menu.o_gl_filter_menu_date {
+    min-width: 260px;
+}
+
+.o-dropdown--menu.o_gl_filter_menu_date.dropdown-menu {
+    padding: 1rem !important;
+}
+
+.o-dropdown--menu.o_gl_filter_menu_wide {
+    min-width: 320px;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_filter_group {
+    padding: 0.75rem;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_menu_item {
+    min-width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.15rem 0;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_menu_label,
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_menu_value {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_menu_value {
+    color: #4b5563;
+    font-weight: 500;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_custom_group {
+    padding: 0.85rem 1rem 1rem;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_date_picker_group {
+    padding: 0.9rem 1rem;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_field_label {
+    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #6b7280;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_gl_filter_group_title {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.o-dropdown--menu.o_gl_filter_menu .o_multi_record_selector {
+    min-height: calc(2rem + 2px);
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+}
+
+.o_accounting_owl_general_ledger {
+    .o_control_panel .o_control_panel_navigation {
+        flex-wrap: nowrap;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .o_gl_cp_filters {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 1 1 auto;
+        min-width: 0;
+        align-self: center;
+        margin-left: auto;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .o_gl_cp_filters > * {
+        flex: 0 0 auto;
+    }
+
+    .o_gl_search_box {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 160px;
+        max-width: 280px;
+        flex: 1 1 220px;
+        padding: 0 0.75rem;
+        border: 1px solid #d7dce3;
+        border-radius: 0.375rem;
+        background: #fff;
+    }
+
+    .o_gl_search_box input {
+        min-width: 0;
+    }
+
+    .o_gl_summary_chip {
+        white-space: nowrap;
+        background: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .o_gl_summary_chip:hover,
+    .o_gl_summary_chip:focus {
+        background: #e5e7eb;
+        border-color: #d1d5db;
+    }
+
+    .o_gl_table_wrap {
+        overflow: hidden;
+    }
+
+    .o_gl_table thead th {
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+    .o_gl_account_row {
+        background: #fbfbfc;
+    }
+
+    .o_gl_account_row:hover {
+        background: #f5f6f8;
+    }
+
+    .o_gl_initial_row {
+        background: #fffdf5;
+    }
+
+    .o_gl_total_row {
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .o_gl_line_row td:first-child,
+    .o_gl_initial_row td:first-child,
+    .o_gl_total_row td:first-child {
+        position: relative;
+        padding-left: 4.25rem !important;
+    }
+
+    .o_gl_line_row td:first-child::before,
+    .o_gl_initial_row td:first-child::before,
+    .o_gl_total_row td:first-child::before {
+        content: "";
+        position: absolute;
+        left: 2rem;
+        top: 0.35rem;
+        bottom: 0.35rem;
+        width: 1px;
+        background: #dbe2ea;
+    }
+
+    .o_gl_line_row td:first-child::after,
+    .o_gl_initial_row td:first-child::after,
+    .o_gl_total_row td:first-child::after {
+        content: "";
+        position: absolute;
+        left: 2rem;
+        top: 50%;
+        width: 1rem;
+        border-top: 1px solid #dbe2ea;
+        transform: translateY(-50%);
+    }
+
+    @media (max-width: 991.98px) {
+        .o_control_panel .o_control_panel_navigation {
+            flex-wrap: wrap;
+        }
+
+        .o_gl_cp_filters {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            overflow-x: visible;
+        }
+    }
+
+    .table td,
+    .table th {
+        vertical-align: middle;
+    }
+}

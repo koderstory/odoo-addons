@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="accounting_owl_reports.GeneralLedgerReport">
+        <div class="o_action o_accounting_owl_general_ledger">
+            <Layout display="display">
+                <t t-set-slot="layout-buttons">
+                    <div class="o_cp_buttons d-flex gap-2" role="toolbar" aria-label="General ledger actions">
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            t-on-click="this.onApplyFilters"
+                            t-att-disabled="state.loadingReport"
+                        >
+                            <t t-if="state.loadingReport">Loading...</t>
+                            <t t-else="">Apply</t>
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            t-on-click="this.onResetFilters"
+                            t-att-disabled="state.loadingReport"
+                        >
+                            Reset
+                        </button>
+                        <t t-if="hasAccounts">
+                            <button type="button" class="btn btn-outline-secondary" t-on-click="this.expandAll">
+                                Expand All
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" t-on-click="this.collapseAll">
+                                Collapse All
+                            </button>
+                        </t>
+                    </div>
+                </t>
+
+                <t t-set-slot="control-panel-navigation-additional">
+                    <div class="o_gl_cp_filters">
+                        <div class="o_gl_search_box">
+                            <i class="fa fa-search text-muted"/>
+                            <input
+                                class="form-control border-0 shadow-none"
+                                type="text"
+                                placeholder="Search..."
+                                t-att-value="state.searchTerm"
+                                t-on-input="(ev) => this.updateSearchTerm(ev)"
+                            />
+                        </div>
+
+                        <Dropdown menuClass="'o_gl_filter_menu o_gl_filter_menu_date'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-calendar me-1"/>
+                                <span t-esc="dateRangeSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <div class="o_gl_filter_group o_gl_date_picker_group">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label form-label-sm o_gl_field_label">Year</label>
+                                            <select
+                                                class="form-select form-select-sm"
+                                                t-on-change="(ev) => this.selectDateYear(ev)"
+                                            >
+                                                <t t-foreach="availableYears" t-as="year" t-key="year">
+                                                    <option
+                                                        t-att-value="year"
+                                                        t-att-selected="year === selectedDateYear ? 'selected' : undefined"
+                                                        t-esc="year"
+                                                    />
+                                                </t>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label form-label-sm o_gl_field_label">Month</label>
+                                            <select
+                                                class="form-select form-select-sm"
+                                                t-on-change="(ev) => this.selectDateMonth(ev)"
+                                            >
+                                                <t t-foreach="monthOptions" t-as="month" t-key="month.value">
+                                                    <option
+                                                        t-att-value="month.value"
+                                                        t-att-selected="month.value === selectedDateMonth ? 'selected' : undefined"
+                                                        t-esc="month.label"
+                                                    />
+                                                </t>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dropdown-divider"/>
+                                <div class="o_gl_filter_group o_gl_date_custom_group">
+                                    <div class="o_gl_filter_group_title mb-2">Custom Dates</div>
+                                    <input
+                                        class="form-control form-control-sm"
+                                        type="date"
+                                        t-att-value="state.options.date_from || ''"
+                                        t-on-change="(ev) => this.updateDateOption('date_from', ev)"
+                                    />
+                                    <input
+                                        class="form-control form-control-sm mt-2"
+                                        type="date"
+                                        t-att-value="state.options.date_to || ''"
+                                        t-on-change="(ev) => this.updateDateOption('date_to', ev)"
+                                    />
+                                </div>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-book me-1"/>
+                                <span t-esc="journalSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <t t-foreach="state.meta.journals" t-as="journal" t-key="journal.id">
+                                    <DropdownItem
+                                        closingMode="'none'"
+                                        onSelected="() => this.toggleJournalId(journal.id)"
+                                    >
+                                        <span t-if="this.isJournalSelected(journal.id)" class="fa fa-check me-2 text-success"/>
+                                        <span t-else="" class="fa fa-fw me-2"/>
+                                        <span t-esc="journal.code || journal.name"/>
+                                    </DropdownItem>
+                                </t>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu o_gl_filter_menu_wide'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-filter me-1"/>
+                                <span t-esc="analyticSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <div class="o_gl_filter_group">
+                                    <div class="o_gl_filter_group_title">Accounts</div>
+                                    <MultiRecordSelector
+                                        t-props="getSelectorProps(
+                                            'account.account',
+                                            'account_ids',
+                                            state.meta.domains.accounts,
+                                            'Accounts',
+                                            'Accounts'
+                                        )"
+                                    />
+                                    <div class="o_gl_filter_group_title mt-3" t-if="state.meta.features.analytic_filter">Analytic Accounts</div>
+                                    <MultiRecordSelector
+                                        t-if="state.meta.features.analytic_filter"
+                                        t-props="getSelectorProps(
+                                            'account.analytic.account',
+                                            'analytic_account_ids',
+                                            state.meta.domains.analytic_accounts,
+                                            'Analytic Accounts',
+                                            'Analytic Accounts'
+                                        )"
+                                    />
+                                </div>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <i class="fa fa-sliders me-1"/>
+                                <span t-esc="targetMoveSummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.selectTargetMove('posted')">
+                                    <span t-if="state.options.target_move === 'posted'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    All Posted Entries
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.selectTargetMove('all')">
+                                    <span t-if="state.options.target_move === 'all'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    All Entries
+                                </DropdownItem>
+                                <div class="dropdown-divider"/>
+                                <DropdownItem closingMode="'none'" onSelected="() => this.toggleInitialBalanceQuick()">
+                                    <span t-if="state.options.initial_balance" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    Include Initial Balances
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+
+                        <Dropdown menuClass="'o_gl_filter_menu'" position="'bottom-start'">
+                            <button type="button" class="btn btn-light o_gl_summary_chip">
+                                <span t-esc="amountDisplaySummary"/>
+                            </button>
+                            <t t-set-slot="content">
+                                <DropdownItem onSelected="() => this.setAmountDisplay('full_decimal')">
+                                    <span t-if="state.amountDisplay === 'full_decimal'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayFullDecimalLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('full')">
+                                    <span t-if="state.amountDisplay === 'full'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayFullLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('k')">
+                                    <span t-if="state.amountDisplay === 'k'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayKLabel"/>
+                                </DropdownItem>
+                                <DropdownItem onSelected="() => this.setAmountDisplay('m')">
+                                    <span t-if="state.amountDisplay === 'm'" class="fa fa-check me-2 text-success"/>
+                                    <span t-else="" class="fa fa-fw me-2"/>
+                                    <span t-esc="amountDisplayMLabel"/>
+                                </DropdownItem>
+                            </t>
+                        </Dropdown>
+                    </div>
+                </t>
+
+                <div class="container-fluid pb-3">
+                    <t t-if="state.loading">
+                        <div class="o_view_nocontent">
+                            <div class="o_nocontent_help">
+                                <p class="o_view_nocontent_smiling_face">Loading general ledger...</p>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-else="">
+                        <t t-if="state.report">
+                            <t t-if="hasAccounts">
+                                <div class="table-responsive card shadow-sm border-0 o_gl_table_wrap">
+                                    <table class="table table-sm align-middle mb-0 o_gl_table">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Account</th>
+                                                <th>Date</th>
+                                                <th>Communication</th>
+                                                <th>Partner</th>
+                                                <th class="text-end">Debit</th>
+                                                <th class="text-end">Credit</th>
+                                                <th class="text-end">Balance</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <t t-foreach="filteredAccounts" t-as="account" t-key="account.id">
+                                                <tr
+                                                    class="o_gl_account_row cursor-pointer"
+                                                    t-on-click="() => this.toggleAccount(account.id)"
+                                                >
+                                                    <td class="fw-semibold">
+                                                        <i
+                                                            class="fa fa-fw text-muted me-1"
+                                                            t-att-class="isUnfolded(account.id) ? 'fa-caret-down' : 'fa-caret-right'"
+                                                        />
+                                                        <span class="text-muted me-2" t-esc="account.code"/>
+                                                        <span t-esc="account.name"/>
+                                                    </td>
+                                                    <td/>
+                                                    <td/>
+                                                    <td/>
+                                                    <td class="text-end fw-semibold" t-esc="formatMoney(account.debit)"/>
+                                                    <td class="text-end fw-semibold" t-esc="formatMoney(account.credit)"/>
+                                                    <td
+                                                        class="text-end fw-semibold"
+                                                        t-att-class="account.balance &lt; 0 ? 'text-danger' : ''"
+                                                        t-esc="formatMoney(account.balance)"
+                                                    />
+                                                </tr>
+
+                                                <t t-if="isUnfolded(account.id)">
+                                                    <t t-foreach="account.move_lines" t-as="line" t-key="line.id">
+                                                        <tr t-att-class="line.is_initial_balance ? 'o_gl_initial_row' : 'o_gl_line_row'">
+                                                            <td class="ps-4">
+                                                                <t t-if="line.is_initial_balance">
+                                                                    <span class="fw-medium">Initial Balance</span>
+                                                                </t>
+                                                                <t t-else="">
+                                                                    <t t-if="line.move_line_id">
+                                                                        <button
+                                                                            type="button"
+                                                                            class="btn btn-link p-0 align-baseline text-start"
+                                                                            t-on-click.stop="() => this.openMoveLine(line)"
+                                                                        >
+                                                                            <span t-esc="line.move_name || line.reference || line.label"/>
+                                                                        </button>
+                                                                    </t>
+                                                                    <t t-else="">
+                                                                        <span t-esc="line.move_name || line.reference || line.label"/>
+                                                                    </t>
+                                                                </t>
+                                                            </td>
+                                                            <td t-esc="formatLineDate(line.date)"/>
+                                                            <td>
+                                                                <span t-esc="line.label || line.reference"/>
+                                                            </td>
+                                                            <td t-esc="line.partner_name"/>
+                                                            <td class="text-end" t-esc="formatMoney(line.debit)"/>
+                                                            <td class="text-end" t-esc="formatMoney(line.credit)"/>
+                                                            <td
+                                                                class="text-end"
+                                                                t-att-class="line.balance &lt; 0 ? 'text-danger' : ''"
+                                                                t-esc="formatMoney(line.balance)"
+                                                            />
+                                                        </tr>
+                                                    </t>
+                                                    <tr class="o_gl_total_row">
+                                                        <td class="ps-4 fw-semibold">
+                                                            Total
+                                                            <span class="ms-1 text-muted" t-esc="account.code"/>
+                                                            <span class="ms-1" t-esc="account.name"/>
+                                                        </td>
+                                                        <td/>
+                                                        <td/>
+                                                        <td/>
+                                                        <td class="text-end fw-semibold" t-esc="formatMoney(account.debit)"/>
+                                                        <td class="text-end fw-semibold" t-esc="formatMoney(account.credit)"/>
+                                                        <td
+                                                            class="text-end fw-semibold"
+                                                            t-att-class="account.balance &lt; 0 ? 'text-danger' : ''"
+                                                            t-esc="formatMoney(account.balance)"
+                                                        />
+                                                    </tr>
+                                                </t>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </t>
+                            <t t-else="">
+                                <div class="o_view_nocontent bg-white rounded-3 shadow-sm">
+                                    <div class="o_nocontent_help">
+                                        <p class="o_view_nocontent_smiling_face">No ledger lines match these filters.</p>
+                                    </div>
+                                </div>
+                            </t>
+                        </t>
+                    </t>
+                </div>
+            </Layout>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_accounting_owl_general_ledger" model="ir.actions.client">
+        <field name="name">General Ledger</field>
+        <field name="tag">accounting_owl_reports.general_ledger</field>
+    </record>
+
+    <menuitem
+        id="menu_accounting_owl_reports"
+        name="OWL Reports"
+        parent="account.menu_finance_reports"
+        sequence="90"
+        groups="account.group_account_user,account.group_account_manager"
+    />
+
+    <menuitem
+        id="menu_accounting_owl_general_ledger"
+        name="General Ledger"
+        parent="menu_accounting_owl_reports"
+        action="action_accounting_owl_general_ledger"
+        sequence="10"
+        groups="account.group_account_user,account.group_account_manager"
+    />
+
+</odoo>
